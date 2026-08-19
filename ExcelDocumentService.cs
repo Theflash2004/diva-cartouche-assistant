@@ -17,7 +17,7 @@ internal sealed record ExcelAppendResult(bool Added, bool AlreadyExists, string 
 
 internal static class ExcelDocumentService
 {
-    private static readonly string[] RequiredColumns = ["Codification", "Document", "Domain", "Version", "Date", "Classer"];
+    private static readonly string[] RequiredColumns = ["Codification", "Domain", "Version", "Date", "Classer"];
     private static readonly CultureInfo FrenchCulture = CultureInfo.GetCultureInfo("fr-FR");
 
     public static ExcelInspection Inspect(string workbookPath)
@@ -155,7 +155,7 @@ internal static class ExcelDocumentService
     {
         var lastPossible = LastPossibleRow(sheet);
         var dataColumns = inspection.Columns
-            .Where(pair => pair.Key is "Document" or "Codification" or "Domain" or "Version" or "Date" or "Classer" or "ReviewDate")
+            .Where(pair => pair.Key is not "Number")
             .Select(pair => pair.Value)
             .ToArray();
         for (var row = lastPossible; row > inspection.HeaderRow; row--)
@@ -211,7 +211,9 @@ internal static class ExcelDocumentService
 
         var firstColumn = 1;
         var columnCount = inspection.LastUsedColumn;
-        var documentIndex = inspection.Columns["Document"] - firstColumn;
+        var sortIndex = (inspection.Columns.TryGetValue("Document", out var documentColumn)
+                ? documentColumn
+                : inspection.Columns["Codification"]) - firstColumn;
         var rows = new List<object?[]>();
         for (var row = inspection.HeaderRow + 1; row <= last; row++)
         {
@@ -220,8 +222,8 @@ internal static class ExcelDocumentService
             rows.Add(values);
         }
         rows.Sort((left, right) => StringComparer.CurrentCultureIgnoreCase.Compare(
-            Convert.ToString(left[documentIndex], CultureInfo.InvariantCulture),
-            Convert.ToString(right[documentIndex], CultureInfo.InvariantCulture)));
+            Convert.ToString(left[sortIndex], CultureInfo.InvariantCulture),
+            Convert.ToString(right[sortIndex], CultureInfo.InvariantCulture)));
 
         for (var rowIndex = 0; rowIndex < rows.Count; rowIndex++)
         {
@@ -284,6 +286,7 @@ internal static class ExcelDocumentService
                     if (!string.IsNullOrWhiteSpace(header)) headers[Normalize(header)] = firstColumn + relativeColumn - 1;
                 }
                 var mapped = MapColumns(headers);
+                ResolveNumberColumn(sheet, mapped, headerRow: firstRow + relativeRow - 1, lastRow: firstRow + rows - 1);
                 if (RequiredColumns.All(mapped.ContainsKey)) { found = mapped; headerRow = firstRow + relativeRow - 1; break; }
             }
             if (found is null) return null;
@@ -313,6 +316,21 @@ internal static class ExcelDocumentService
         Add(headers, result, "Author", "prepare par", "auteur", "responsable");
         Add(headers, result, "Number", "numero", "n");
         return result;
+    }
+
+    private static void ResolveNumberColumn(dynamic sheet, Dictionary<string, int> columns, int headerRow, int lastRow)
+    {
+        if (!columns.TryGetValue("Document", out var documentColumn)) return;
+
+        var values = Enumerable.Range(headerRow + 1, Math.Max(0, lastRow - headerRow))
+            .Select(row => CellValue((object)sheet, row, documentColumn))
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Take(25)
+            .ToArray();
+        if (values.Length == 0 || !values.All(value => int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out _))) return;
+
+        columns["Number"] = documentColumn;
+        columns.Remove("Document");
     }
 
     private static void Add(Dictionary<string, int> headers, Dictionary<string, int> result, string key, params string[] aliases)
