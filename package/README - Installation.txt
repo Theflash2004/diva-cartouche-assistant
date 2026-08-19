@@ -21,12 +21,15 @@ Utilisation
 - Lancez Diva depuis le raccourci.
 - Choisissez le modele, le type, le domaine et remplissez les champs demandes.
 - Cliquez sur Creer et ouvrir le document.
-- Le DOCX et le PDF sont crees dans le dossier exact du document; Word et ce
-  dossier s'ouvrent automatiquement.
+- Le DOCX est cree dans le dossier exact du document; Word et ce dossier
+  s'ouvrent automatiquement.
+- Completez le contenu dans Word, enregistrez, puis cliquez sur Document fini.
 
-PDF automatique
----------------
-Diva reste dans la zone de notification Windows apres la creation. Quand le
-DOCX est enregistre dans Word, le PDF de meme nom est actualise automatiquement.
+Export PDF et registre
+----------------------
+Quand vous cliquez sur Document fini, Diva exporte le PDF a cote du DOCX.
+Si le document doit entrer dans la gestion documentaire, choisissez le
+classeur Excel puis un ou plusieurs lieux de classement existants. Une
+codification deja presente n'est jamais ajoutee une deuxieme fois.
 
 Le guide complet est inclus dans le fichier Diva-cartouche-assistant-guide.pdf.

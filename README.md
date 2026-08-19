@@ -1,6 +1,8 @@
 # Diva Cartouche Assistant
 
-Windows desktop assistant for the ARSEF document system. It creates the cartouche in the template's central header cell, keeps the title centered, generates codes such as `OUT-QUA-Codification des documents-1`, prepares the ARSEF folders on the real Windows Desktop, opens the DOCX and its exact folder, and refreshes the matching PDF when the DOCX changes.
+Windows desktop assistant for the ARSEF document system. It creates the cartouche in the template's central header cell, keeps the title centered, generates codes such as `OUT-QUA-Codification des documents-1`, prepares the ARSEF folders on the real Windows Desktop, opens the DOCX and its exact folder, then exports the matching PDF when the user clicks `Document fini`.
+
+The document session is saved locally so a restart can offer to resume the unfinished DOCX. At completion, Diva asks whether the document belongs in the document-management register. It reads the existing `Lieu de classement` values from the selected Excel workbook, supports several selections, validates the register columns, appends one line, and never duplicates an existing codification.
 
 ## Requirements
 

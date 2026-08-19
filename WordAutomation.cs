@@ -39,7 +39,7 @@ internal static class WordAutomation
             word = StartWord();
             document = AddDocumentFromTemplate(word, templatePath);
             PrepareDocument(document, input, plan.Code, templateKind);
-            SaveOutputs(document, plan);
+            SaveDocument(document, plan);
             completed = true;
         }
         finally
@@ -67,7 +67,7 @@ internal static class WordAutomation
             document.CopyStylesFromTemplate(templatePath);
             CopyTemplateHeadersAndFooters(template, document);
             PrepareDocument(document, input, plan.Code, ArsefTemplateKind.Cartouche);
-            SaveOutputs(document, plan);
+            SaveDocument(document, plan);
             completed = true;
         }
         finally
@@ -523,10 +523,9 @@ internal static class WordAutomation
         }
     }
 
-    private static void SaveOutputs(dynamic document, ArsefPlan plan)
+    private static void SaveDocument(dynamic document, ArsefPlan plan)
     {
         document.SaveAs2(plan.DocxPath, WdDocx);
-        document.ExportAsFixedFormat(plan.PdfPath, WdPdf);
     }
 
     private static void CloseDocument(dynamic? document)

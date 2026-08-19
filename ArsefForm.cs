@@ -24,11 +24,14 @@ internal sealed class ArsefForm : Form
     private readonly Label codePreview = new();
     private readonly Label pathPreview = new();
     private readonly Label status = new();
+    private readonly Button documentFinishedButton = new();
     private string arsefRoot = string.Empty;
     private string settingsPath = string.Empty;
     private bool foldersPrepared;
     private FileStream? outputReservation;
     private readonly NotifyIcon trayIcon = new();
+    private ActiveDocumentSession? activeSession;
+    // Kept for compatibility with older private builds; no watcher is started anymore.
     private readonly ConcurrentDictionary<string, System.Threading.Timer> pdfRefreshTimers = new(StringComparer.OrdinalIgnoreCase);
     private FileSystemWatcher? pdfWatcher;
     private bool quitting;
@@ -46,9 +49,12 @@ internal sealed class ArsefForm : Form
         ApplySelectionRules();
         UpdatePreview();
         InitializeTray();
-        StartPdfWatcher();
         FormClosing += HandleFormClosing;
-        Shown += (_, _) => _ = UpdateService.CheckAsync(this);
+        Shown += (_, _) =>
+        {
+            RestorePendingSession();
+            _ = UpdateService.CheckAsync(this);
+        };
     }
 
     private void BuildUi()
@@ -59,7 +65,7 @@ internal sealed class ArsefForm : Form
             Dock = DockStyle.Fill,
             Padding = new Padding(18),
             ColumnCount = 2,
-            RowCount = 15,
+            RowCount = 17,
             AutoScroll = true,
             BackColor = Color.FromArgb(248, 246, 251)
         };
@@ -94,7 +100,7 @@ internal sealed class ArsefForm : Form
         });
         banner.Controls.Add(new Label
         {
-            Text = "Créer • classer • suivre les PDF automatiquement",
+            Text = "Créer • classer • exporter le PDF à la fin",
             AutoSize = true,
             ForeColor = Color.FromArgb(95, 95, 95),
             Margin = new Padding(18, 17, 0, 0)
@@ -133,10 +139,37 @@ internal sealed class ArsefForm : Form
         root.Controls.Add(actions, 0, 13);
         root.SetColumnSpan(actions, 2);
 
+        var finishedGroup = new GroupBox
+        {
+            Text = "Quand le contenu est terminé",
+            Dock = DockStyle.Fill,
+            AutoSize = true,
+            ForeColor = purple,
+            Padding = new Padding(10, 8, 10, 4),
+            Margin = new Padding(0, 4, 0, 4)
+        };
+        var finishedLayout = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, WrapContents = true };
+        finishedLayout.Controls.Add(new Label
+        {
+            Text = "Après avoir complété et enregistré le document dans Word :",
+            AutoSize = true,
+            ForeColor = Color.FromArgb(70, 70, 70),
+            Margin = new Padding(0, 8, 12, 8)
+        });
+        documentFinishedButton.Text = "Document fini — exporter le PDF";
+        documentFinishedButton.AutoSize = true;
+        documentFinishedButton.Height = 36;
+        documentFinishedButton.Enabled = false;
+        documentFinishedButton.Click += (_, _) => FinishDocument();
+        finishedLayout.Controls.Add(documentFinishedButton);
+        finishedGroup.Controls.Add(finishedLayout);
+        root.Controls.Add(finishedGroup, 0, 14);
+        root.SetColumnSpan(finishedGroup, 2);
+
         status.AutoSize = true;
         status.MaximumSize = new Size(700, 0);
         status.ForeColor = Color.FromArgb(70, 70, 70);
-        root.Controls.Add(status, 0, 14);
+        root.Controls.Add(status, 0, 16);
         root.SetColumnSpan(status, 2);
 
         var oldTitleLabel = root.GetControlFromPosition(0, 2);
@@ -338,6 +371,16 @@ internal sealed class ArsefForm : Form
 
     private void CreateNew()
     {
+        if (activeSession is not null && File.Exists(activeSession.DocxPath))
+        {
+            var answer = MessageBox.Show(
+                "Un document est encore en cours :\r\n\r\n" + activeSession.Code + "\r\n\r\n" +
+                "Cliquez sur « Document fini » pour l'exporter, ou choisissez Oui pour abandonner cette session et créer un nouveau document.",
+                "Document en cours", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+            if (answer == DialogResult.No) return;
+            ClearActiveSession();
+        }
+
         if (!EnsureArsefRoot()) return;
         if (!ValidateInput(out var input, out var plan)) return;
         if (!PrepareFolders()) return;
@@ -346,7 +389,7 @@ internal sealed class ArsefForm : Form
         {
             var model = SelectedModel();
             WordAutomation.CreateFromTemplate(TemplateCatalog.Extract(model), input, plan, model.Kind);
-            Finish(plan);
+            Finish(plan, input, model);
         }
         catch (Exception ex)
         {
@@ -366,7 +409,7 @@ internal sealed class ArsefForm : Form
             try { Directory.Delete(plan.OutputFolder); } catch { }
         }
 
-        if (Directory.Exists(plan.OutputFolder) || File.Exists(plan.DocxPath) || File.Exists(plan.PdfPath))
+        if (Directory.Exists(plan.OutputFolder) || File.Exists(plan.DocxPath))
         {
             ShowCollision(plan.OutputFolder);
             return false;
@@ -403,11 +446,151 @@ internal sealed class ArsefForm : Form
             "Nom déjà utilisé", MessageBoxButtons.OK, MessageBoxIcon.Warning);
     }
 
-    private void Finish(ArsefPlan plan)
+    private void Finish(ArsefPlan plan, ArsefInput input, ArsefTemplateModel model)
     {
         status.Text = "Terminé : le document Word et le PDF sont sur le Bureau.\r\n" + plan.OutputFolder;
+        activeSession = ActiveDocumentSession.From(input, plan, model.Code);
+        SaveActiveSession();
+        documentFinishedButton.Enabled = true;
+        status.Text = "Document Word créé. Complétez son contenu, enregistrez-le, puis cliquez sur « Document fini ».\r\n" + plan.OutputFolder;
         TryOpenFile(plan.DocxPath);
         OpenFolder(plan.OutputFolder);
+    }
+
+    private void FinishDocument()
+    {
+        if (activeSession is null) LoadActiveSession();
+        if (activeSession is null)
+        {
+            MessageBox.Show("Aucun document en cours n'a été trouvé.", "Document fini", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        if (!File.Exists(activeSession.DocxPath))
+        {
+            MessageBox.Show("Le fichier Word de la session n'existe plus :\r\n" + activeSession.DocxPath, "Document introuvable", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            ClearActiveSession();
+            return;
+        }
+
+        var management = MessageBox.Show(
+            "Ce document doit-il être inclus dans la gestion documentaire ?",
+            "Gestion documentaire", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+
+        if (management == DialogResult.Yes && !AppendToManagementRegister()) return;
+        try
+        {
+            WordAutomation.UpdatePdf(activeSession.DocxPath, activeSession.PdfPath);
+            if (!File.Exists(activeSession.PdfPath) || new FileInfo(activeSession.PdfPath).Length == 0)
+                throw new InvalidOperationException("Le PDF n'a pas pu être créé ou vérifié.");
+
+            var pdfPath = activeSession.PdfPath;
+            var code = activeSession.Code;
+            ClearActiveSession();
+            status.Text = management == DialogResult.Yes
+                ? "Document terminé : PDF exporté et registre mis à jour.\r\n" + pdfPath
+                : "Document terminé : PDF exporté.\r\n" + pdfPath;
+            TryOpenFile(pdfPath);
+            OpenFolder(Path.GetDirectoryName(pdfPath)!);
+            MessageBox.Show("PDF créé :\r\n" + code + ".pdf", "Document fini", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+        catch (Exception ex)
+        {
+            ShowError(ex);
+        }
+    }
+
+    private bool AppendToManagementRegister()
+    {
+        if (activeSession is null) return false;
+        var workbookPath = ChooseManagementWorkbook(activeSession.RegistryPath);
+        if (string.IsNullOrWhiteSpace(workbookPath)) return false;
+
+        ExcelInspection inspection;
+        try
+        {
+            inspection = ExcelDocumentService.Inspect(workbookPath);
+        }
+        catch (Exception ex)
+        {
+            ShowError(ex);
+            return false;
+        }
+
+        if (inspection.ClasserOptions.Count == 0)
+        {
+            MessageBox.Show("La colonne « Lieu de classement » ne contient encore aucune option utilisable.", "Classeur incomplet", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return false;
+        }
+
+        using var selector = new ClasserSelectionDialog(inspection.ClasserOptions);
+        if (selector.ShowDialog(this) != DialogResult.OK || selector.SelectedValues.Count == 0)
+        {
+            MessageBox.Show("Sélectionnez au moins un lieu de classement pour continuer.", "Sélection nécessaire", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return false;
+        }
+
+        activeSession = activeSession with { RegistryPath = workbookPath };
+        SaveActiveSession();
+        try
+        {
+            var result = ExcelDocumentService.Append(workbookPath, activeSession.ToInput(), activeSession.ToPlan(), selector.SelectedValues);
+            MessageBox.Show(result.Message, "Gestion documentaire", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            ShowError(ex);
+            return false;
+        }
+    }
+
+    private string? ChooseManagementWorkbook(string? rememberedPath)
+    {
+        if (!string.IsNullOrWhiteSpace(rememberedPath) && File.Exists(rememberedPath))
+        {
+            var answer = MessageBox.Show(
+                "Utiliser le classeur mémorisé ?\r\n\r\n" + rememberedPath,
+                "Classeur de gestion documentaire", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
+            if (answer == DialogResult.Yes) return rememberedPath;
+            if (answer == DialogResult.Cancel) return null;
+        }
+
+        var automaticPath = FindDefaultManagementWorkbook();
+        if (automaticPath is not null)
+        {
+            var answer = MessageBox.Show(
+                "Classeur ARSEF trouvé automatiquement :\r\n\r\n" + automaticPath + "\r\n\r\nUtiliser ce classeur ?",
+                "Classeur de gestion documentaire", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
+            if (answer == DialogResult.Yes) return automaticPath;
+            if (answer == DialogResult.Cancel) return null;
+        }
+
+        using var picker = new OpenFileDialog
+        {
+            Title = "Choisir le classeur de gestion documentaire",
+            Filter = "Classeurs Excel (*.xlsx;*.xlsm;*.xls)|*.xlsx;*.xlsm;*.xls|Tous les fichiers (*.*)|*.*",
+            CheckFileExists = true,
+            Multiselect = false
+        };
+        return picker.ShowDialog(this) == DialogResult.OK ? picker.FileName : null;
+    }
+
+    private static string? FindDefaultManagementWorkbook()
+    {
+        const string fileName = "REGISTRE DE MAITRISE DOCUMENTAIRE - VERSION DIRECTION - ORDRE ALPHABETIQUE - COMPLET.xlsx";
+        var profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        if (string.IsNullOrWhiteSpace(profile)) return null;
+        try
+        {
+            foreach (var oneDrive in Directory.EnumerateDirectories(profile, "OneDrive*", SearchOption.TopDirectoryOnly))
+            {
+                var candidate = Path.Combine(oneDrive, "Gestion documentaire ARSEF", fileName);
+                if (File.Exists(candidate)) return candidate;
+            }
+        }
+        catch { }
+        return null;
     }
 
     private bool EnsureArsefRoot()
@@ -435,7 +618,7 @@ internal sealed class ArsefForm : Form
     private void InitializeTray()
     {
         trayIcon.Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath) ?? SystemIcons.Application;
-        trayIcon.Text = "Diva cartouche assistant - surveillance PDF";
+        trayIcon.Text = "Diva cartouche assistant";
         trayIcon.DoubleClick += (_, _) => ShowFromTray();
 
         var menu = new ContextMenuStrip();
@@ -458,11 +641,10 @@ internal sealed class ArsefForm : Form
         {
             e.Cancel = true;
             Hide();
-            trayIcon.ShowBalloonTip(2500, "Diva cartouche assistant", "Diva reste actif et met à jour les PDF automatiquement.", ToolTipIcon.Info);
+            trayIcon.ShowBalloonTip(2500, "Diva cartouche assistant", "La session du document en cours est conservée.", ToolTipIcon.Info);
             return;
         }
 
-        StopPdfWatcher();
         trayIcon.Visible = false;
         trayIcon.Dispose();
     }
@@ -475,6 +657,7 @@ internal sealed class ArsefForm : Form
 
     private void StartPdfWatcher()
     {
+        if (pdfWatcher is null && !IsHandleCreated) return;
         try
         {
             Directory.CreateDirectory(arsefRoot);
@@ -501,6 +684,7 @@ internal sealed class ArsefForm : Form
 
     private void QueuePdfRefresh(object? sender, FileSystemEventArgs e)
     {
+        if (pdfWatcher is null) return;
         if (!e.FullPath.EndsWith(".docx", StringComparison.OrdinalIgnoreCase)) return;
         var timer = pdfRefreshTimers.GetOrAdd(e.FullPath, path => new System.Threading.Timer(_ => RefreshPdf(path), null, Timeout.Infinite, Timeout.Infinite));
         timer.Change(2500, Timeout.Infinite);
@@ -576,6 +760,86 @@ internal sealed class ArsefForm : Form
             ?? throw new InvalidOperationException("Aucun modèle n'est sélectionné.");
     }
 
+    private void RestorePendingSession()
+    {
+        var session = ReadActiveSession();
+        if (session is null) return;
+        if (!File.Exists(session.DocxPath))
+        {
+            ClearActiveSession();
+            return;
+        }
+
+        activeSession = session;
+        documentFinishedButton.Enabled = true;
+        var answer = MessageBox.Show(
+            "Un document n'est pas terminé :\r\n\r\n" + session.Code + "\r\n" + session.DocxPath + "\r\n\r\nVoulez-vous reprendre cette session ?",
+            "Document en cours", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+        if (answer == DialogResult.Yes)
+        {
+            ApplySessionToFields(session);
+            status.Text = "Session reprise. Complétez le document Word, enregistrez-le, puis cliquez sur « Document fini ».";
+            TryOpenFile(session.DocxPath);
+            OpenFolder(session.OutputFolder);
+        }
+        else
+        {
+            status.Text = "Session conservée : cliquez sur « Document fini » quand le document est prêt.\r\n" + session.OutputFolder;
+        }
+    }
+
+    private void ApplySessionToFields(ActiveDocumentSession session)
+    {
+        modelBox.SelectedItem = TemplateCatalog.Models.FirstOrDefault(x => x.Code.Equals(session.TemplateCode, StringComparison.OrdinalIgnoreCase)) ?? modelBox.SelectedItem;
+        titleBox.Text = session.Title;
+        recipientBox.Text = session.EmailRecipient;
+        codeWordBox.Text = session.DocumentCode;
+        versionBox.Text = session.Version;
+        authorBox.Text = session.Author;
+        dateBox.Value = session.ValidityDate < dateBox.MinDate ? dateBox.MinDate : session.ValidityDate > dateBox.MaxDate ? dateBox.MaxDate : session.ValidityDate;
+        typeBox.SelectedItem = ArsefRules.Types.FirstOrDefault(x => x.Code.Equals(session.TypeCode, StringComparison.OrdinalIgnoreCase)) ?? typeBox.SelectedItem;
+        domainBox.SelectedItem = ArsefRules.Domains.FirstOrDefault(x => x.Code.Equals(session.DomainCode, StringComparison.OrdinalIgnoreCase)) ?? domainBox.SelectedItem;
+        serviceBox.SelectedItem = ArsefRules.Services.FirstOrDefault(x => x.Code.Equals(session.ServiceCode, StringComparison.OrdinalIgnoreCase)) ?? serviceBox.SelectedItem;
+        ApplySelectionRules();
+        UpdatePreview();
+    }
+
+    private void LoadActiveSession()
+    {
+        var session = ReadActiveSession();
+        if (session is not null && File.Exists(session.DocxPath))
+        {
+            activeSession = session;
+            documentFinishedButton.Enabled = true;
+        }
+    }
+
+    private static ActiveDocumentSession? ReadActiveSession()
+    {
+        try
+        {
+            if (!File.Exists(AppPaths.ActiveSessionPath)) return null;
+            return JsonSerializer.Deserialize<ActiveDocumentSession>(File.ReadAllText(AppPaths.ActiveSessionPath));
+        }
+        catch { return null; }
+    }
+
+    private void SaveActiveSession()
+    {
+        if (activeSession is null) return;
+        Directory.CreateDirectory(AppPaths.DataRoot);
+        var temporaryPath = AppPaths.ActiveSessionPath + ".tmp";
+        File.WriteAllText(temporaryPath, JsonSerializer.Serialize(activeSession, new JsonSerializerOptions { WriteIndented = true }));
+        File.Move(temporaryPath, AppPaths.ActiveSessionPath, true);
+    }
+
+    private void ClearActiveSession()
+    {
+        activeSession = null;
+        documentFinishedButton.Enabled = false;
+        try { if (File.Exists(AppPaths.ActiveSessionPath)) File.Delete(AppPaths.ActiveSessionPath); } catch { }
+    }
+
     private void LoadSettings()
     {
         settingsPath = AppPaths.SettingsPath;
@@ -619,4 +883,39 @@ internal sealed class ArsefForm : Form
     }
 
     private sealed record ArsefSettings(string ArsefRoot, string Author = "");
+
+    private sealed record ActiveDocumentSession(
+        string Code,
+        string DomainFolder,
+        string TypeFolder,
+        string ServiceFolder,
+        string OutputFolder,
+        string DocxPath,
+        string PdfPath,
+        string TemplateCode,
+        string Title,
+        string TypeCode,
+        string DomainCode,
+        string ServiceCode,
+        string DocumentCode,
+        string Version,
+        string Author,
+        DateTime ValidityDate,
+        string EmailSubject,
+        string EmailRecipient,
+        string? RegistryPath = null)
+    {
+        public static ActiveDocumentSession From(ArsefInput input, ArsefPlan plan, string templateCode) => new(
+            plan.Code, plan.DomainFolder, plan.TypeFolder, plan.ServiceFolder, plan.OutputFolder, plan.DocxPath, plan.PdfPath,
+            templateCode, input.Title, input.TypeCode, input.DomainCode, input.ServiceCode, input.DocumentCode, input.Version,
+            input.Author, input.ValidityDate, input.EmailSubject, input.EmailRecipient);
+
+        public ArsefInput ToInput() => new(Title, TypeCode, DomainCode, ServiceCode, DocumentCode, Version, Author, ValidityDate)
+        {
+            EmailSubject = EmailSubject,
+            EmailRecipient = EmailRecipient
+        };
+
+        public ArsefPlan ToPlan() => new(Code, DomainFolder, TypeFolder, ServiceFolder, OutputFolder, DocxPath, PdfPath);
+    }
 }
