@@ -19,7 +19,7 @@ dotnet run --project tests/SelfCheck/SelfCheck.csproj -c Release
 dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true
 ```
 
-The app remembers the preparer's name after it is entered. It does not collect telemetry. The optional updater checks the public GitHub Releases endpoint, verifies the downloaded package by SHA-256, preserves settings and templates, and restores the previous executable if the new one does not start successfully.
+The app remembers the preparer's name after it is entered. It does not collect telemetry. The optional updater checks the public GitHub Releases endpoint, shows download progress, verifies the package by SHA-256, preserves settings and templates, restores the previous executable if the new one does not start successfully, and confirms the update after restart.
 
 ## License
 

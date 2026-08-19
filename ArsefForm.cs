@@ -882,6 +882,11 @@ internal sealed class ArsefForm : Form
         BeginInvoke(new Action(Close));
     }
 
+    internal void SetStartupStatus(string text)
+    {
+        status.Text = text;
+    }
+
     private sealed record ArsefSettings(string ArsefRoot, string Author = "");
 
     private sealed record ActiveDocumentSession(

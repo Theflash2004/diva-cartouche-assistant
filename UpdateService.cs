@@ -31,33 +31,46 @@ internal static class UpdateService
                     "Mise à jour disponible", MessageBoxButtons.YesNo, MessageBoxIcon.Information) != DialogResult.Yes)
                 return;
 
-            var updateRoot = AppPaths.UpdatesRoot;
-            Directory.CreateDirectory(updateRoot);
-            var zipPath = Path.Combine(updateRoot, PackageName);
-            await DownloadAsync(client, asset.DownloadUrl, zipPath);
-            var digest = asset.Digest;
-            var checksumAsset = release.Assets.FirstOrDefault(x => x.Name.Equals("checksums.txt", StringComparison.OrdinalIgnoreCase));
-            if (string.IsNullOrWhiteSpace(digest) && checksumAsset is not null)
+            using var progress = new UpdateProgressDialog(owner);
+            progress.Show(owner);
+            try
             {
-                var checksumPath = Path.Combine(updateRoot, "checksums.txt");
-                await DownloadAsync(client, checksumAsset.DownloadUrl, checksumPath);
-                digest = ReadChecksum(checksumPath, PackageName);
-                File.Delete(checksumPath);
-            }
-            Verify(zipPath, digest);
+                var updateRoot = AppPaths.UpdatesRoot;
+                Directory.CreateDirectory(updateRoot);
+                var zipPath = Path.Combine(updateRoot, PackageName);
+                progress.SetMessage("Téléchargement de la mise à jour…");
+                await DownloadAsync(client, asset.DownloadUrl, zipPath, progress);
 
-            var marker = Path.Combine(updateRoot, "update-" + Guid.NewGuid().ToString("N") + ".ok");
-            var start = new ProcessStartInfo(Application.ExecutablePath)
+                progress.SetMessage("Vérification de l'intégrité du téléchargement…");
+                var digest = asset.Digest;
+                var checksumAsset = release.Assets.FirstOrDefault(x => x.Name.Equals("checksums.txt", StringComparison.OrdinalIgnoreCase));
+                if (string.IsNullOrWhiteSpace(digest) && checksumAsset is not null)
+                {
+                    var checksumPath = Path.Combine(updateRoot, "checksums.txt");
+                    await DownloadAsync(client, checksumAsset.DownloadUrl, checksumPath, progress);
+                    digest = ReadChecksum(checksumPath, PackageName);
+                    File.Delete(checksumPath);
+                }
+                Verify(zipPath, digest);
+
+                progress.SetMessage("Installation sécurisée de la mise à jour…");
+                var marker = Path.Combine(updateRoot, "update-" + Guid.NewGuid().ToString("N") + ".ok");
+                var start = new ProcessStartInfo(Application.ExecutablePath)
+                {
+                    UseShellExecute = true,
+                    WorkingDirectory = AppContext.BaseDirectory
+                };
+                start.ArgumentList.Add("--apply-update");
+                start.ArgumentList.Add(zipPath);
+                start.ArgumentList.Add(Environment.ProcessId.ToString());
+                start.ArgumentList.Add(marker);
+                Process.Start(start);
+                owner.ExitForUpdate();
+            }
+            finally
             {
-                UseShellExecute = true,
-                WorkingDirectory = AppContext.BaseDirectory
-            };
-            start.ArgumentList.Add("--apply-update");
-            start.ArgumentList.Add(zipPath);
-            start.ArgumentList.Add(Environment.ProcessId.ToString());
-            start.ArgumentList.Add(marker);
-            Process.Start(start);
-            owner.ExitForUpdate();
+                if (!progress.IsDisposed) progress.Close();
+            }
         }
         catch
         {
@@ -65,13 +78,32 @@ internal static class UpdateService
         }
     }
 
-    private static async Task DownloadAsync(HttpClient client, string url, string path)
+    private static async Task DownloadAsync(HttpClient client, string url, string path, UpdateProgressDialog progress)
     {
         using var response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
         response.EnsureSuccessStatusCode();
+        var totalBytes = response.Content.Headers.ContentLength;
+        progress.BeginDownload(totalBytes);
         await using var source = await response.Content.ReadAsStreamAsync();
-        await using var target = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None);
-        await source.CopyToAsync(target);
+        var temporaryPath = path + ".download";
+        try
+        {
+            await using var target = new FileStream(temporaryPath, FileMode.Create, FileAccess.Write, FileShare.None);
+            var buffer = new byte[1024 * 128];
+            long completedBytes = 0;
+            int read;
+            while ((read = await source.ReadAsync(buffer)) > 0)
+            {
+                await target.WriteAsync(buffer.AsMemory(0, read));
+                completedBytes += read;
+                progress.ReportDownload(completedBytes, totalBytes);
+            }
+            File.Move(temporaryPath, path, true);
+        }
+        finally
+        {
+            try { if (File.Exists(temporaryPath)) File.Delete(temporaryPath); } catch { }
+        }
     }
 
     private static string? ReadChecksum(string path, string fileName)

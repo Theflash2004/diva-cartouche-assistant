@@ -21,7 +21,14 @@ internal static class Program
         TemplateCatalog.Configure(schema);
         ApplicationConfiguration.Initialize();
         using var form = new ArsefForm();
-        if (postUpdateMarker is not null) UpdateInstaller.MarkHealthy(postUpdateMarker);
+        if (postUpdateMarker is not null)
+        {
+            UpdateInstaller.MarkHealthy(postUpdateMarker);
+            form.SetStartupStatus("Mise à jour installée avec succès.");
+            form.Shown += (_, _) => MessageBox.Show(form,
+                "Diva Cartouche Assistant a été mis à jour avec succès.",
+                "Application mise à jour", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
         Application.Run(form);
     }
 }
