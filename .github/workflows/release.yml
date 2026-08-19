@@ -42,4 +42,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         shell: pwsh
-        run: gh release create $env:GITHUB_REF_NAME artifacts\DivaCartoucheAssistant-Setup.exe artifacts\DivaCartoucheAssistant-win-x64.zip artifacts\checksums.txt --title "Diva Cartouche Assistant $env:GITHUB_REF_NAME" --generate-notes
+        run: |
+          $release = gh release view $env:GITHUB_REF_NAME 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $env:GITHUB_REF_NAME artifacts\DivaCartoucheAssistant-Setup.exe artifacts\DivaCartoucheAssistant-win-x64.zip artifacts\checksums.txt --clobber
+          } else {
+            gh release create $env:GITHUB_REF_NAME artifacts\DivaCartoucheAssistant-Setup.exe artifacts\DivaCartoucheAssistant-win-x64.zip artifacts\checksums.txt --title "Diva Cartouche Assistant $env:GITHUB_REF_NAME" --generate-notes
+          }
