@@ -4,6 +4,8 @@ Windows desktop assistant for the ARSEF document system. It creates the cartouch
 
 The document session is saved locally so a restart can offer to resume the unfinished DOCX. At completion, Diva asks whether the document belongs in the document-management register. It reads the existing `Lieu de classement` values from the selected Excel workbook, supports several selections, validates the register columns, appends one line, and never duplicates an existing codification.
 
+The registry migration adds `Date de revue` at one year after `Date de mise à jour`, removes empty registry lines, keeps dates readable as `dd/MM/yyyy`, sorts by document name, and renumbers the `N°` column. The existing ARSEF workbook is kept local; it is never uploaded to the public repository.
+
 ## Requirements
 
 - Windows 10 or 11, 64-bit

@@ -162,6 +162,7 @@ internal sealed class ArsefForm : Form
         documentFinishedButton.Enabled = false;
         documentFinishedButton.Click += (_, _) => FinishDocument();
         finishedLayout.Controls.Add(documentFinishedButton);
+        finishedLayout.Controls.Add(Button("Historique des documents", (_, _) => ShowHistory()));
         finishedGroup.Controls.Add(finishedLayout);
         root.Controls.Add(finishedGroup, 0, 14);
         root.SetColumnSpan(finishedGroup, 2);
@@ -210,7 +211,7 @@ internal sealed class ArsefForm : Form
         serviceBox.DataSource = ArsefRules.Services.ToList();
         modelBox.DisplayMember = nameof(ArsefTemplateModel.Label);
         typeBox.DisplayMember = nameof(ArsefOption.ChoiceLabel);
-        domainBox.DisplayMember = nameof(ArsefOption.ChoiceLabel);
+        domainBox.DisplayMember = nameof(ArsefOption.ShortLabel);
         serviceBox.DisplayMember = nameof(ArsefOption.ChoiceLabel);
         modelBox.SelectedIndexChanged += (_, _) => { ApplyModelRules(true); ApplySelectionRules(); UpdatePreview(); };
         typeBox.SelectedIndexChanged += (_, _) => { ApplySelectionRules(); UpdatePreview(); };
@@ -451,6 +452,7 @@ internal sealed class ArsefForm : Form
         status.Text = "Terminé : le document Word et le PDF sont sur le Bureau.\r\n" + plan.OutputFolder;
         activeSession = ActiveDocumentSession.From(input, plan, model.Code);
         SaveActiveSession();
+        DocumentHistory.Started(new DocumentHistoryEntry(activeSession.Code, activeSession.Title, activeSession.DocxPath, activeSession.PdfPath, DateTime.Now, null, false));
         documentFinishedButton.Enabled = true;
         status.Text = "Document Word créé. Complétez son contenu, enregistrez-le, puis cliquez sur « Document fini ».\r\n" + plan.OutputFolder;
         TryOpenFile(plan.DocxPath);
@@ -486,6 +488,7 @@ internal sealed class ArsefForm : Form
 
             var pdfPath = activeSession.PdfPath;
             var code = activeSession.Code;
+            DocumentHistory.Finished(code, management == DialogResult.Yes);
             ClearActiveSession();
             status.Text = management == DialogResult.Yes
                 ? "Document terminé : PDF exporté et registre mis à jour.\r\n" + pdfPath
@@ -509,7 +512,7 @@ internal sealed class ArsefForm : Form
         ExcelInspection inspection;
         try
         {
-            inspection = ExcelDocumentService.Inspect(workbookPath);
+            inspection = ExcelDocumentService.Prepare(workbookPath);
         }
         catch (Exception ex)
         {
@@ -583,6 +586,13 @@ internal sealed class ArsefForm : Form
         if (string.IsNullOrWhiteSpace(profile)) return null;
         try
         {
+            foreach (var bundled in new[]
+                     {
+                         Path.Combine(AppContext.BaseDirectory, fileName),
+                         Path.Combine(AppPaths.TemplatesRoot, fileName)
+                     })
+                if (File.Exists(bundled)) return bundled;
+
             foreach (var oneDrive in Directory.EnumerateDirectories(profile, "OneDrive*", SearchOption.TopDirectoryOnly))
             {
                 var candidate = Path.Combine(oneDrive, "Gestion documentaire ARSEF", fileName);
@@ -591,6 +601,12 @@ internal sealed class ArsefForm : Form
         }
         catch { }
         return null;
+    }
+
+    private void ShowHistory()
+    {
+        using var dialog = new DocumentHistoryDialog(DocumentHistory.Load());
+        dialog.ShowDialog(this);
     }
 
     private bool EnsureArsefRoot()
@@ -772,6 +788,7 @@ internal sealed class ArsefForm : Form
 
         activeSession = session;
         documentFinishedButton.Enabled = true;
+        ApplySessionToFields(session);
         var answer = MessageBox.Show(
             "Un document n'est pas terminé :\r\n\r\n" + session.Code + "\r\n" + session.DocxPath + "\r\n\r\nVoulez-vous reprendre cette session ?",
             "Document en cours", MessageBoxButtons.YesNo, MessageBoxIcon.Question);

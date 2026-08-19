@@ -5,6 +5,14 @@ namespace AssistantArsef.Core;
 public sealed record ArsefOption(string Code, string Label, string Folder, string? DisplayText = null)
 {
     public string ChoiceLabel => DisplayText ?? Label;
+    public string ShortLabel
+    {
+        get
+        {
+            var separator = Label.IndexOf(" - ", StringComparison.Ordinal);
+            return separator >= 0 ? Label[(separator + 3)..] : Label;
+        }
+    }
     public override string ToString() => ChoiceLabel;
 }
 
@@ -51,7 +59,7 @@ public static class ArsefRules
     {
         schema = value;
         Types = value.Types.Select(ToOption).ToArray();
-        Domains = value.Domains.Select(ToOption).ToArray();
+        Domains = value.Domains.Where(x => !x.Code.Equals("RGPD", StringComparison.OrdinalIgnoreCase)).Select(ToOption).ToArray();
         Services = value.Services.Select(ToOption).ToArray();
     }
 
