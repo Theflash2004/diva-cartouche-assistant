@@ -1,0 +1,32 @@
+{
+  "RootFolderName": "DivaDocuments",
+  "LetterPlace": "Place",
+  "ServiceDomainCode": "OPS",
+  "RegisterCodeMarker": "REGISTER-CODE-1",
+  "RegisterVersionMarker": "Version 1",
+  "RegisterTitleMarker": "REGISTER TITLE",
+  "Types": [
+    { "Code": "MAN", "Label": "MAN - Manuel", "Folder": "MANUAL", "DisplayText": "MAN - Manuel (Instructions, chartes, règles générales)" },
+    { "Code": "PROC", "Label": "PROC - Procédure", "Folder": "PROCEDURES", "DisplayText": "PROC - Procédure (Étapes à suivre pour réaliser une activité)" },
+    { "Code": "PROT", "Label": "PROT - Protocole", "Folder": "PROTOCOLES", "DisplayText": "PROT - Protocole (Consignes détaillées)" },
+    { "Code": "OUT", "Label": "OUT - Outil / Guide", "Folder": "OUTILS", "DisplayText": "OUT - Outil / Guide (Support pratique)" },
+    { "Code": "ENR", "Label": "ENR - Enregistrement", "Folder": "ENREGISTREMENTS", "DisplayText": "ENR - Enregistrement (Document à signer ou compléter)" },
+    { "Code": "REG", "Label": "REG - Registre", "Folder": "REGISTRES", "DisplayText": "REG - Registre (Tableau de suivi)" }
+  ],
+  "Domains": [
+    { "Code": "GEN", "Label": "GEN - Général", "Folder": "GEN", "DisplayText": "GEN - Général (Documents transversaux)" },
+    { "Code": "DIR", "Label": "DIR - Direction", "Folder": "DIR", "DisplayText": "DIR - Direction (Décisions et correspondances)" },
+    { "Code": "RH", "Label": "RH - Ressources humaines", "Folder": "RH", "DisplayText": "RH - Ressources humaines (Personnel et formation)" },
+    { "Code": "OPS", "Label": "OPS - Opérations", "Folder": "OPS", "DisplayText": "OPS - Opérations (Activités quotidiennes)" },
+    { "Code": "SI", "Label": "SI - Système d'information", "Folder": "SI", "DisplayText": "SI - Système d'information (Logiciels et sécurité)" }
+  ],
+  "Services": [
+    { "Code": "SERVICE-A", "Label": "Service A", "Folder": "SERVICE-A" },
+    { "Code": "SERVICE-B", "Label": "Service B", "Folder": "SERVICE-B" }
+  ],
+  "Templates": [
+    { "Code": "CARTOUCHE", "Label": "Document (cartouche)", "FileName": "Cartouche.dotm", "Kind": "Cartouche" },
+    { "Code": "EMAIL", "Label": "Email", "FileName": "Email.dotm", "Kind": "Plain", "DefaultTypeCode": "ENR", "DefaultDomainCode": "GEN" },
+    { "Code": "REGISTRE", "Label": "Registre (tableau vide)", "FileName": "Registre.docx", "Kind": "Register", "DefaultTypeCode": "REG", "DefaultDomainCode": "GEN" }
+  ]
+}

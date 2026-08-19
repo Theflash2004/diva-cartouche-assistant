@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>DivaCartoucheAssistant</AssemblyName>
+    <Version>0.1.0</Version>
+    <AssemblyVersion>$(Version).0</AssemblyVersion>
+    <FileVersion>$(Version).0</FileVersion>
+    <RootNamespace>AssistantArsef</RootNamespace>
+    <ApplicationIcon>Assets\diva-cat-logo.ico</ApplicationIcon>
+    <Platforms>AnyCPU</Platforms>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Assets\diva-cat-logo.png" LogicalName="AssistantArsef.Assets.diva-cat-logo.png" />
+    <Content Include="Assets\diva-cat-logo.ico" />
+    <Compile Remove="tests\**" />
+    <Compile Remove="FlowchartForm.cs" />
+  </ItemGroup>
+
+</Project>
