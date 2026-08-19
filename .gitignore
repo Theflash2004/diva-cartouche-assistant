@@ -23,6 +23,11 @@ private/
 Assets/*
 !Assets/diva-cat-logo.png
 !Assets/diva-cat-logo.ico
+!Assets/ARSEF.dotm
+!Assets/Email direction.dotm
+!Assets/SAD Email.dotm
+!Assets/SSIAD EMAIL.dotm
+!Assets/REG-QUA-VIOL-1.docx
 FlowchartForm.cs
 tools/build_guide.py
 package/Diva cartouche assistant.exe

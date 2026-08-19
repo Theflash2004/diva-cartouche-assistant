@@ -13,6 +13,7 @@ internal sealed record ArsefTemplateModel(
 
 internal static class TemplateCatalog
 {
+    private const string ResourcePrefix = "AssistantArsef.Templates.";
     private static string templatesRoot = AppPaths.TemplatesRoot;
     public static IReadOnlyList<ArsefTemplateModel> Models { get; private set; } = [];
 
@@ -31,12 +32,19 @@ internal static class TemplateCatalog
     public static string Extract(ArsefTemplateModel model)
     {
         var external = Path.Combine(templatesRoot, model.FileName);
-        if (!File.Exists(external))
-            throw new FileNotFoundException(
-                $"Le modèle '{model.Label}' est absent. Ajoutez le modèle privé dans :\r\n{templatesRoot}",
-                external);
+        if (File.Exists(external)) return external;
 
-        return external;
+        var assembly = typeof(TemplateCatalog).Assembly;
+        using var source = assembly.GetManifestResourceStream(ResourcePrefix + model.FileName)
+            ?? throw new FileNotFoundException($"Le modèle '{model.Label}' est absent.", model.FileName);
+        using var buffer = new MemoryStream();
+        source.CopyTo(buffer);
+        var bytes = buffer.ToArray();
+        var hash = Convert.ToHexString(SHA256.HashData(bytes))[..12].ToLowerInvariant();
+        var path = Path.Combine(templatesRoot, Path.GetFileNameWithoutExtension(model.FileName) + "-" + hash + Path.GetExtension(model.FileName));
+        Directory.CreateDirectory(templatesRoot);
+        if (!File.Exists(path)) File.WriteAllBytes(path, bytes);
+        return path;
     }
 
     // Kept for private template bundles that want content-addressed copies.

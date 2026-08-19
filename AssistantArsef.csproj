@@ -6,7 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AssemblyName>DivaCartoucheAssistant</AssemblyName>
-    <Version>0.1.0</Version>
+    <Version>0.1.1</Version>
     <AssemblyVersion>$(Version).0</AssemblyVersion>
     <FileVersion>$(Version).0</FileVersion>
     <RootNamespace>AssistantArsef</RootNamespace>
@@ -16,6 +16,11 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Assets\diva-cat-logo.png" LogicalName="AssistantArsef.Assets.diva-cat-logo.png" />
+    <EmbeddedResource Include="Assets\ARSEF.dotm" LogicalName="AssistantArsef.Templates.ARSEF.dotm" />
+    <EmbeddedResource Include="Assets\Email direction.dotm" LogicalName="AssistantArsef.Templates.Email direction.dotm" />
+    <EmbeddedResource Include="Assets\SAD Email.dotm" LogicalName="AssistantArsef.Templates.SAD Email.dotm" />
+    <EmbeddedResource Include="Assets\SSIAD EMAIL.dotm" LogicalName="AssistantArsef.Templates.SSIAD EMAIL.dotm" />
+    <EmbeddedResource Include="Assets\REG-QUA-VIOL-1.docx" LogicalName="AssistantArsef.Templates.REG-QUA-VIOL-1.docx" />
     <Content Include="Assets\diva-cat-logo.ico" />
     <Compile Remove="tests\**" />
     <Compile Remove="FlowchartForm.cs" />

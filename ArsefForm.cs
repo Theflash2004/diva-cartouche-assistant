@@ -185,6 +185,7 @@ internal sealed class ArsefForm : Form
         serviceBox.SelectedIndexChanged += (_, _) => UpdatePreview();
         foreach (var control in new Control[] { titleBox, recipientBox, codeWordBox, versionBox, authorBox })
             control.TextChanged += (_, _) => UpdatePreview();
+        authorBox.TextChanged += (_, _) => { if (settingsPath.Length > 0) SaveSettings(); };
         dateBox.ValueChanged += (_, _) => UpdatePreview();
         modelBox.SelectedIndex = 0;
         typeBox.SelectedIndex = 0;
@@ -231,8 +232,17 @@ internal sealed class ArsefForm : Form
     {
         var domain = domainBox.SelectedItem as ArsefOption;
         var type = typeBox.SelectedItem as ArsefOption;
+        var rgpd = type?.Code == "RGPD";
         var soins = domain?.Code.Equals(ArsefRules.ServiceDomainCode, StringComparison.OrdinalIgnoreCase) == true;
-        domainBox.Enabled = true;
+        if (rgpd)
+        {
+            domainBox.SelectedItem = ArsefRules.Domains.FirstOrDefault(x => x.Code == "QUA") ?? ArsefRules.Domains.FirstOrDefault();
+            domainBox.Enabled = false;
+        }
+        else
+        {
+            domainBox.Enabled = true;
+        }
 
         serviceBox.Enabled = soins;
         serviceBox.Visible = soins;
@@ -575,6 +585,7 @@ internal sealed class ArsefForm : Form
             {
                 var settings = JsonSerializer.Deserialize<ArsefSettings>(File.ReadAllText(settingsPath));
                 arsefRoot = settings?.ArsefRoot ?? string.Empty;
+                if (!string.IsNullOrWhiteSpace(settings?.Author)) authorBox.Text = settings.Author;
             }
         }
         catch { arsefRoot = string.Empty; }
@@ -592,7 +603,7 @@ internal sealed class ArsefForm : Form
     private void SaveSettings()
     {
         Directory.CreateDirectory(Path.GetDirectoryName(settingsPath)!);
-        File.WriteAllText(settingsPath, JsonSerializer.Serialize(new ArsefSettings(arsefRoot)));
+        File.WriteAllText(settingsPath, JsonSerializer.Serialize(new ArsefSettings(arsefRoot, authorBox.Text.Trim())));
     }
 
     private void ShowError(Exception ex)
@@ -607,5 +618,5 @@ internal sealed class ArsefForm : Form
         BeginInvoke(new Action(Close));
     }
 
-    private sealed record ArsefSettings(string ArsefRoot);
+    private sealed record ArsefSettings(string ArsefRoot, string Author = "");
 }

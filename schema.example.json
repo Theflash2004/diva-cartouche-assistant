@@ -1,32 +1,38 @@
 {
-  "RootFolderName": "DivaDocuments",
-  "LetterPlace": "Place",
-  "ServiceDomainCode": "OPS",
-  "RegisterCodeMarker": "REGISTER-CODE-1",
+  "RootFolderName": "ARSEF",
+  "LetterPlace": "Roche La Molière",
+  "ServiceDomainCode": "SOI",
+  "RegisterCodeMarker": "REG-QUA-VIOL-1",
   "RegisterVersionMarker": "Version 1",
-  "RegisterTitleMarker": "REGISTER TITLE",
+  "RegisterTitleMarker": "REGISTRE DES VIOLATIONS DE DONNÉES PERSONNELLES",
   "Types": [
-    { "Code": "MAN", "Label": "MAN - Manuel", "Folder": "MANUAL", "DisplayText": "MAN - Manuel (Instructions, chartes, règles générales)" },
+    { "Code": "MAN", "Label": "MAN - Manuel", "Folder": "MANUEL", "DisplayText": "MAN - Manuel (Manuel qualité, chartes, règles générales)" },
     { "Code": "PROC", "Label": "PROC - Procédure", "Folder": "PROCEDURES", "DisplayText": "PROC - Procédure (Étapes à suivre pour réaliser une activité)" },
-    { "Code": "PROT", "Label": "PROT - Protocole", "Folder": "PROTOCOLES", "DisplayText": "PROT - Protocole (Consignes détaillées)" },
-    { "Code": "OUT", "Label": "OUT - Outil / Guide", "Folder": "OUTILS", "DisplayText": "OUT - Outil / Guide (Support pratique)" },
-    { "Code": "ENR", "Label": "ENR - Enregistrement", "Folder": "ENREGISTREMENTS", "DisplayText": "ENR - Enregistrement (Document à signer ou compléter)" },
-    { "Code": "REG", "Label": "REG - Registre", "Folder": "REGISTRES", "DisplayText": "REG - Registre (Tableau de suivi)" }
+    { "Code": "PROT", "Label": "PROT - Protocole", "Folder": "PROTOCOLE", "DisplayText": "PROT - Protocole (Consignes détaillées, notamment pour les soins)" },
+    { "Code": "OUT", "Label": "OUT - Outil / Guide", "Folder": "OUTILS", "DisplayText": "OUT - Outil / Guide (Support pratique à utiliser au quotidien)" },
+    { "Code": "ENR", "Label": "ENR - Enregistrement", "Folder": "ENREGISTREMENT", "DisplayText": "ENR - Enregistrement (Document à signer ou compléter ; privilégier le modèle email si le document est court)" },
+    { "Code": "REG", "Label": "REG - Registre", "Folder": "REGISTRE", "DisplayText": "REG - Registre (Tableau de suivi à compléter dans le temps)" },
+    { "Code": "RGPD", "Label": "RGPD - Document conformité", "Folder": "RGPD", "DisplayText": "RGPD - Conformité (Document relatif aux données personnelles)" }
   ],
   "Domains": [
-    { "Code": "GEN", "Label": "GEN - Général", "Folder": "GEN", "DisplayText": "GEN - Général (Documents transversaux)" },
-    { "Code": "DIR", "Label": "DIR - Direction", "Folder": "DIR", "DisplayText": "DIR - Direction (Décisions et correspondances)" },
-    { "Code": "RH", "Label": "RH - Ressources humaines", "Folder": "RH", "DisplayText": "RH - Ressources humaines (Personnel et formation)" },
-    { "Code": "OPS", "Label": "OPS - Opérations", "Folder": "OPS", "DisplayText": "OPS - Opérations (Activités quotidiennes)" },
-    { "Code": "SI", "Label": "SI - Système d'information", "Folder": "SI", "DisplayText": "SI - Système d'information (Logiciels et sécurité)" }
+    { "Code": "QUA", "Label": "QUA - Qualité et Risques", "Folder": "ARSEF Qualité et Risques", "DisplayText": "QUA - Qualité et Risques (Réclamations, audits, amélioration continue)" },
+    { "Code": "RH", "Label": "RH - Ressources Humaines", "Folder": "ARSEF RH", "DisplayText": "RH - Ressources Humaines (Personnel, recrutement, formation)" },
+    { "Code": "SOI", "Label": "SOI - Pôle Soins", "Folder": "ARSEF Pôle soins ( SSIAD, ESA)", "DisplayText": "SOI - Pôle Soins (SSIAD, ESA, accompagnement des soins)" },
+    { "Code": "AID", "Label": "AID - Pôle Aide à domicile", "Folder": "ARSEF Pôle Aide à domicile", "DisplayText": "AID - Pôle Aide à domicile (Interventions et accompagnement)" },
+    { "Code": "DIR", "Label": "DIR - Direction", "Folder": "ARSEF Direction", "DisplayText": "DIR - Direction (Décisions, pilotage, correspondances)" },
+    { "Code": "USA", "Label": "USA - Usagers", "Folder": "ARSEF Usagers", "DisplayText": "USA - Usagers (Dossiers et relations avec les usagers)" },
+    { "Code": "SI", "Label": "SI - Système d'Information", "Folder": "ARSEF Système d'Information", "DisplayText": "SI - Système d'information (Logiciels, accès, sécurité)" },
+    { "Code": "LOG", "Label": "LOG - Logistique", "Folder": "ARSEF Logistique", "DisplayText": "LOG - Logistique (Locaux, équipements, achats)" }
   ],
   "Services": [
-    { "Code": "SERVICE-A", "Label": "Service A", "Folder": "SERVICE-A" },
-    { "Code": "SERVICE-B", "Label": "Service B", "Folder": "SERVICE-B" }
+    { "Code": "ESA", "Label": "ESA - Équipe Spécialisée Alzheimer", "Folder": "ESA" },
+    { "Code": "SSIAD", "Label": "SSIAD - Soins Infirmiers à Domicile", "Folder": "SSIAD" }
   ],
   "Templates": [
-    { "Code": "CARTOUCHE", "Label": "Document (cartouche)", "FileName": "Cartouche.dotm", "Kind": "Cartouche" },
-    { "Code": "EMAIL", "Label": "Email", "FileName": "Email.dotm", "Kind": "Plain", "DefaultTypeCode": "ENR", "DefaultDomainCode": "GEN" },
-    { "Code": "REGISTRE", "Label": "Registre (tableau vide)", "FileName": "Registre.docx", "Kind": "Register", "DefaultTypeCode": "REG", "DefaultDomainCode": "GEN" }
+    { "Code": "ARSEF", "Label": "Document ARSEF (cartouche)", "FileName": "ARSEF.dotm", "Kind": "Cartouche" },
+    { "Code": "EMAIL_DIRECTION", "Label": "Email - Direction", "FileName": "Email direction.dotm", "Kind": "Plain", "DefaultTypeCode": "ENR", "DefaultDomainCode": "DIR" },
+    { "Code": "EMAIL_SAD", "Label": "Email - SAD", "FileName": "SAD Email.dotm", "Kind": "Plain", "DefaultTypeCode": "ENR", "DefaultDomainCode": "AID" },
+    { "Code": "EMAIL_SSIAD", "Label": "Email - SSIAD", "FileName": "SSIAD EMAIL.dotm", "Kind": "Plain", "DefaultTypeCode": "ENR", "DefaultDomainCode": "SOI" },
+    { "Code": "REGISTRE", "Label": "Registre (tableau vide)", "FileName": "REG-QUA-VIOL-1.docx", "Kind": "Register", "DefaultTypeCode": "REG", "DefaultDomainCode": "QUA" }
   ]
 }
