@@ -17,7 +17,7 @@ internal sealed record ExcelAppendResult(bool Added, bool AlreadyExists, string 
 
 internal static class ExcelDocumentService
 {
-    private static readonly string[] RequiredColumns = ["Codification", "Domain", "Version", "Date", "Classer"];
+    private static readonly string[] RequiredColumns = ["Document", "Codification", "Domain", "Version", "Date", "Classer"];
     private static readonly CultureInfo FrenchCulture = CultureInfo.GetCultureInfo("fr-FR");
 
     public static ExcelInspection Inspect(string workbookPath)
@@ -99,11 +99,10 @@ internal static class ExcelDocumentService
                 if (inspection.Columns.TryGetValue("Author", out var authorColumn))
                     Set(sheet, row, authorColumn, input.Author.Trim());
                 if (inspection.Columns.TryGetValue("Number", out var numberColumn))
-                    Set(sheet, row, numberColumn, row - inspection.HeaderRow);
+                    Set(sheet, row, numberColumn, NextNumber(sheet, inspection));
 
-                SortAndRenumber(sheet, inspection);
                 workbook.Save();
-                return new ExcelAppendResult(true, false, "Le document a été ajouté au registre, trié par ordre alphabétique et daté.");
+                return new ExcelAppendResult(true, false, "Le document a été ajouté à la suite du registre et daté.");
             }
             finally
             {
@@ -118,6 +117,7 @@ internal static class ExcelDocumentService
 
     private static ExcelInspection PrepareRegistry(dynamic workbook, ExcelInspection initial)
     {
+        // ponytail: preserve the established Word-register order; new documents append without resorting the whole register.
         dynamic sheet = workbook.Worksheets[initial.SheetName];
         try { RemoveEmptyRows(sheet, initial); }
         finally { Release(sheet); }
@@ -143,7 +143,6 @@ internal static class ExcelDocumentService
         try
         {
             NormalizeDates(sheet, inspection);
-            SortAndRenumber(sheet, inspection);
         }
         finally { Release(sheet); }
 
@@ -204,34 +203,17 @@ internal static class ExcelDocumentService
 
     private static string FormatVersion(string version) => version.Trim().StartsWith("v.", StringComparison.OrdinalIgnoreCase) ? version.Trim() : "v." + version.Trim();
 
-    private static void SortAndRenumber(dynamic sheet, ExcelInspection inspection)
+    private static int NextNumber(dynamic sheet, ExcelInspection inspection)
     {
+        if (!inspection.Columns.TryGetValue("Number", out var numberColumn)) return 0;
+        var maximum = 0;
         var last = LastDataRow(sheet, inspection);
-        if (last <= inspection.HeaderRow) return;
-
-        var firstColumn = 1;
-        var columnCount = inspection.LastUsedColumn;
-        var sortIndex = (inspection.Columns.TryGetValue("Document", out var documentColumn)
-                ? documentColumn
-                : inspection.Columns["Codification"]) - firstColumn;
-        var rows = new List<object?[]>();
         for (var row = inspection.HeaderRow + 1; row <= last; row++)
         {
-            var values = new object?[columnCount];
-            for (var column = firstColumn; column <= columnCount; column++) values[column - firstColumn] = RawCell((object)sheet, row, column);
-            rows.Add(values);
+            var value = CellValue((object)sheet, row, numberColumn);
+            if (int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var number)) maximum = Math.Max(maximum, number);
         }
-        rows.Sort((left, right) => StringComparer.CurrentCultureIgnoreCase.Compare(
-            Convert.ToString(left[sortIndex], CultureInfo.InvariantCulture),
-            Convert.ToString(right[sortIndex], CultureInfo.InvariantCulture)));
-
-        for (var rowIndex = 0; rowIndex < rows.Count; rowIndex++)
-        {
-            var row = inspection.HeaderRow + 1 + rowIndex;
-            var values = rows[rowIndex];
-            for (var column = firstColumn; column <= columnCount; column++) Set(sheet, row, column, values[column - firstColumn] ?? string.Empty);
-            if (inspection.Columns.TryGetValue("Number", out var numberColumn)) Set(sheet, row, numberColumn, rowIndex + 1);
-        }
+        return maximum + 1;
     }
 
     private static dynamic StartExcel()
@@ -314,7 +296,7 @@ internal static class ExcelDocumentService
         Add(headers, result, "ReviewDate", "date de revue", "revue");
         Add(headers, result, "Classer", "lieu de classement", "classeur", "emplacement", "localisation", "dossier");
         Add(headers, result, "Author", "prepare par", "auteur", "responsable");
-        Add(headers, result, "Number", "numero", "n");
+        Add(headers, result, "Number", "numero", "n", "n a");
         return result;
     }
 
